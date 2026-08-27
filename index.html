@@ -102,15 +102,38 @@
     </div>
   </div>
 
-  <script>
-    const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-    let items = JSON.parse(localStorage.getItem('pro_stock') || '[]');
-    let editIndex = null;
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    function save() {
-      localStorage.setItem('pro_stock', JSON.stringify(items));
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBxDdwDrPliOO3ebMz8od9y8t-hoCZ9PV4",
+      authDomain: "stock-de-roupa.firebaseapp.com",
+      databaseURL: "https://stock-de-roupa-default-rtdb.firebaseio.com",
+      projectId: "stock-de-roupa",
+      storageBucket: "stock-de-roupa.firebasestorage.app",
+      messagingSenderId: "215119876616",
+      appId: "1:215119876616:web:c4bd0a975cd746bf68b7bd",
+      measurementId: "G-7TY9Q1VW59"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database().ref('stock');
+
+    const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    let items = [];
+    let editKey = null;
+
+    db.on('value', (snapshot) => {
+      const data = snapshot.val();
+      items = [];
+      if (data) {
+        Object.keys(data).forEach(key => {
+          items.push({ key, ...data[key] });
+        });
+      }
       render();
-    }
+    });
 
     function render() {
       const q = document.getElementById('search').value.toLowerCase();
@@ -121,14 +144,14 @@
       let criticalCount = 0;
 
       items.filter(i => i.nome.toLowerCase().includes(q) || i.cor.toLowerCase().includes(q))
-           .forEach((item, index) => {
+           .forEach((item) => {
         let isLow = false;
         let sum = 0;
 
         if(item.tipo === 'roupa') {
-          Object.values(item.sizes).forEach(v => { sum += v; if(v < item.min) isLow = true; });
+          Object.values(item.sizes || {}).forEach(v => { sum += v; if(v < item.min) isLow = true; });
         } else {
-          sum = item.qtd;
+          sum = item.qtd || 0;
           if(sum < 2) isLow = true;
         }
 
@@ -152,9 +175,9 @@
                 <div class="size-box">
                   <small style="color:var(--subtext)">${s}</small>
                   <div class="qty-controls">
-                    <button class="btn-sm" onclick="updateQty(${index}, '${s}', -1)">-</button>
-                    <b style="color:${item.sizes[s] < item.min ? 'var(--danger)' : 'var(--text)'}">${item.sizes[s]}</b>
-                    <button class="btn-sm" onclick="updateQty(${index}, '${s}', 1)">+</button>
+                    <button class="btn-sm" onclick="updateQty('${item.key}', '${s}', -1)">-</button>
+                    <b style="color:${((item.sizes && item.sizes[s]) || 0) < item.min ? 'var(--danger)' : 'var(--text)'}">${(item.sizes && item.sizes[s]) || 0}</b>
+                    <button class="btn-sm" onclick="updateQty('${item.key}', '${s}', 1)">+</button>
                   </div>
                 </div>
               `).join('')}
@@ -163,9 +186,9 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin: 15px 0;">
               <span>Quantidade em Stock:</span>
               <div class="qty-controls" style="gap:15px">
-                <button class="btn-sm" onclick="updateQty(${index}, null, -1)">-</button>
-                <b style="font-size:1.2rem">${item.qtd}</b>
-                <button class="btn-sm" onclick="updateQty(${index}, null, 1)">+</button>
+                <button class="btn-sm" onclick="updateQty('${item.key}', null, -1)">-</button>
+                <b style="font-size:1.2rem">${item.qtd || 0}</b>
+                <button class="btn-sm" onclick="updateQty('${item.key}', null, 1)">+</button>
               </div>
             </div>
           `}
@@ -173,8 +196,8 @@
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
             <small style="color:var(--subtext)">Total: ${sum} un.</small>
             <div style="display:flex; gap:6px">
-              <button class="btn-secondary" style="padding: 6px 12px; font-size:12px" onclick="editItem(${index})">✏️ Editar</button>
-              <button class="btn-danger" style="padding: 6px 12px; font-size:12px" onclick="deleteItem(${index})">🗑️ Apagar</button>
+              <button class="btn-secondary" style="padding: 6px 12px; font-size:12px" onclick="editItem('${item.key}')">✏️ Editar</button>
+              <button class="btn-danger" style="padding: 6px 12px; font-size:12px" onclick="deleteItem('${item.key}')">🗑️ Apagar</button>
             </div>
           </div>
         `;
@@ -185,22 +208,28 @@
       document.getElementById('criticalItems').textContent = criticalCount;
     }
 
-    function updateQty(index, size, delta) {
-      if(items[index].tipo === 'roupa') {
-        items[index].sizes[size] = Math.max(0, (items[index].sizes[size] || 0) + delta);
+    function updateQty(key, size, delta) {
+      const item = items.find(i => i.key === key);
+      if (!item) return;
+
+      if(item.tipo === 'roupa') {
+        const currentQty = (item.sizes && item.sizes[size]) || 0;
+        const newQty = Math.max(0, currentQty + delta);
+        db.child(key + '/sizes/' + size).set(newQty);
       } else {
-        items[index].qtd = Math.max(0, (items[index].qtd || 0) + delta);
+        const currentQty = item.qtd || 0;
+        const newQty = Math.max(0, currentQty + delta);
+        db.child(key + '/qtd').set(newQty);
       }
-      save();
     }
 
-    function openModal(index = null) {
-      editIndex = index;
+    function openModal(key = null) {
+      editKey = key;
       const modalTitle = document.getElementById('modalTitle');
       const tipoSelect = document.getElementById('tipo');
 
-      if (index !== null) {
-        const item = items[index];
+      if (key !== null) {
+        const item = items.find(i => i.key === key);
         modalTitle.textContent = "Editar Artigo";
         document.getElementById('nome').value = item.nome;
         document.getElementById('cor').value = item.cor;
@@ -227,7 +256,7 @@
 
     function closeModal() { 
       document.getElementById('modal').classList.add('hidden');
-      editIndex = null;
+      editKey = null;
     }
 
     function toggleForm() {
@@ -236,50 +265,5 @@
       document.getElementById('formCaneca').classList.toggle('hidden', isRoupa);
     }
 
-    function saveItem() {
-      const nome = document.getElementById('nome').value.trim();
-      const cor = document.getElementById('cor').value.trim();
-      const tipo = document.getElementById('tipo').value;
-
-      if(!nome) return alert('Insere um nome');
-
-      if (editIndex !== null) {
-        items[editIndex].nome = nome;
-        items[editIndex].cor = cor;
-        if (tipo === 'roupa') {
-          items[editIndex].min = parseInt(document.getElementById('min').value) || 2;
-        } else {
-          items[editIndex].qtd = parseInt(document.getElementById('qtdCaneca').value) || 0;
-        }
-      } else {
-        let newItem = { id: Date.now(), nome, cor, tipo };
-        if(tipo === 'roupa') {
-          newItem.min = parseInt(document.getElementById('min').value) || 2;
-          newItem.sizes = {};
-          SIZES.forEach(s => newItem.sizes[s] = 0);
-        } else {
-          newItem.qtd = parseInt(document.getElementById('qtdCaneca').value) || 0;
-        }
-        items.push(newItem);
-      }
-
-      save();
-      closeModal();
-    }
-
-    function editItem(index) {
-      openModal(index);
-    }
-
-    function deleteItem(index) {
-      if(confirm('Apagar este artigo?')) {
-        items.splice(index, 1);
-        save();
-      }
-    }
-
-    render();
-  </script>
-</body>
-          </html>
-          
+    function saveItem()
+    
