@@ -97,7 +97,7 @@
 
       <div style="display: flex; gap: 8px; margin-top: 20px;">
         <button class="btn-secondary" style="flex:1" onclick="closeModal()">Cancelar</button>
-        <button style="flex:1" onclick="saveItem()">Guardar</button>
+        <button style="flex:1" id="btnSave" onclick="saveItem()">Guardar</button>
       </div>
     </div>
   </div>
@@ -264,6 +264,8 @@
 
     function closeModal() { 
       document.getElementById('modal').classList.add('hidden');
+      document.getElementById('nome').value = '';
+      document.getElementById('cor').value = '';
       editKey = null;
     }
 
@@ -287,10 +289,13 @@
         } else {
           updates.qtd = parseInt(document.getElementById('qtdCaneca').value) || 0;
         }
-        database.ref('stock/' + editKey).update(updates, (err) => {
-          if (err) alert("Erro ao atualizar: " + err.message);
-          else closeModal();
-        });
+        database.ref('stock/' + editKey).update(updates)
+          .then(() => {
+            closeModal();
+          })
+          .catch((err) => {
+            alert("Erro ao atualizar: " + err.message);
+          });
       } else {
         let newItem = { nome, cor, tipo };
         if(tipo === 'roupa') {
@@ -300,10 +305,13 @@
         } else {
           newItem.qtd = parseInt(document.getElementById('qtdCaneca').value) || 0;
         }
-        database.ref('stock').push(newItem, (err) => {
-          if (err) alert("Erro ao guardar: " + err.message);
-          else closeModal();
-        });
+        database.ref('stock').push(newItem)
+          .then(() => {
+            closeModal();
+          })
+          .catch((err) => {
+            alert("Erro ao guardar: " + err.message);
+          });
       }
     }
 
@@ -318,5 +326,4 @@
     }
   </script>
 </body>
-  </html>
-  
+</html>
