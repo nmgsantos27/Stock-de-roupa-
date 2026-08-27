@@ -102,6 +102,7 @@
     </div>
   </div>
 
+  <!-- Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -118,13 +119,14 @@
     };
 
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database().ref('stock');
+    const database = firebase.database();
+    const dbRef = database.ref('stock');
 
     const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
     let items = [];
     let editKey = null;
 
-    db.on('value', (snapshot) => {
+    dbRef.on('value', (snapshot) => {
       const data = snapshot.val();
       items = [];
       if (data) {
@@ -133,23 +135,29 @@
         });
       }
       render();
+    }, (error) => {
+      alert("Erro ao ligar à base de dados: " + error.message);
     });
 
     function render() {
-      const q = document.getElementById('search').value.toLowerCase();
+      const searchEl = document.getElementById('search');
+      const q = searchEl ? searchEl.value.toLowerCase() : '';
       const app = document.getElementById('app');
       app.innerHTML = '';
 
       let totalCount = 0;
       let criticalCount = 0;
 
-      items.filter(i => i.nome.toLowerCase().includes(q) || i.cor.toLowerCase().includes(q))
+      items.filter(i => (i.nome || '').toLowerCase().includes(q) || (i.cor || '').toLowerCase().includes(q))
            .forEach((item) => {
         let isLow = false;
         let sum = 0;
 
         if(item.tipo === 'roupa') {
-          Object.values(item.sizes || {}).forEach(v => { sum += v; if(v < item.min) isLow = true; });
+          Object.values(item.sizes || {}).forEach(v => { 
+            sum += v; 
+            if(v < (item.min || 2)) isLow = true; 
+          });
         } else {
           sum = item.qtd || 0;
           if(sum < 2) isLow = true;
@@ -163,10 +171,10 @@
         card.innerHTML = `
           <div class="card-header">
             <div>
-              <h3>${item.nome}</h3>
-              <div style="font-size: 1.05rem; font-weight: 600; color: var(--subtext); margin-top: 2px;">${item.cor}</div>
+              <h3>${item.nome || 'Sem nome'}</h3>
+              <div style="font-size: 1.05rem; font-weight: 600; color: var(--subtext); margin-top: 2px;">${item.cor || ''}</div>
             </div>
-            <span class="tag ${item.tipo === 'roupa' ? 'tag-roupa' : 'tag-caneca'}">${item.tipo.toUpperCase()}</span>
+            <span class="tag ${item.tipo === 'roupa' ? 'tag-roupa' : 'tag-caneca'}">${(item.tipo || 'roupa').toUpperCase()}</span>
           </div>
 
           ${item.tipo === 'roupa' ? `
@@ -176,7 +184,7 @@
                   <small style="color:var(--subtext)">${s}</small>
                   <div class="qty-controls">
                     <button class="btn-sm" onclick="updateQty('${item.key}', '${s}', -1)">-</button>
-                    <b style="color:${((item.sizes && item.sizes[s]) || 0) < item.min ? 'var(--danger)' : 'var(--text)'}">${(item.sizes && item.sizes[s]) || 0}</b>
+                    <b style="color:${((item.sizes && item.sizes[s]) || 0) < (item.min || 2) ? 'var(--danger)' : 'var(--text)'}">${(item.sizes && item.sizes[s]) || 0}</b>
                     <button class="btn-sm" onclick="updateQty('${item.key}', '${s}', 1)">+</button>
                   </div>
                 </div>
@@ -215,11 +223,11 @@
       if(item.tipo === 'roupa') {
         const currentQty = (item.sizes && item.sizes[size]) || 0;
         const newQty = Math.max(0, currentQty + delta);
-        db.child(key + '/sizes/' + size).set(newQty);
+        database.ref('stock/' + key + '/sizes/' + size).set(newQty);
       } else {
         const currentQty = item.qtd || 0;
         const newQty = Math.max(0, currentQty + delta);
-        db.child(key + '/qtd').set(newQty);
+        database.ref('stock/' + key + '/qtd').set(newQty);
       }
     }
 
@@ -231,9 +239,9 @@
       if (key !== null) {
         const item = items.find(i => i.key === key);
         modalTitle.textContent = "Editar Artigo";
-        document.getElementById('nome').value = item.nome;
-        document.getElementById('cor').value = item.cor;
-        tipoSelect.value = item.tipo;
+        document.getElementById('nome').value = item.nome || '';
+        document.getElementById('cor').value = item.cor || '';
+        tipoSelect.value = item.tipo || 'roupa';
         tipoSelect.disabled = true;
 
         if (item.tipo === 'roupa') {
@@ -265,5 +273,50 @@
       document.getElementById('formCaneca').classList.toggle('hidden', isRoupa);
     }
 
-    function saveItem()
-    
+    function saveItem() {
+      const nome = document.getElementById('nome').value.trim();
+      const cor = document.getElementById('cor').value.trim();
+      const tipo = document.getElementById('tipo').value;
+
+      if(!nome) return alert('Por favor, insere um nome para o artigo');
+
+      if (editKey !== null) {
+        let updates = { nome, cor };
+        if (tipo === 'roupa') {
+          updates.min = parseInt(document.getElementById('min').value) || 2;
+        } else {
+          updates.qtd = parseInt(document.getElementById('qtdCaneca').value) || 0;
+        }
+        database.ref('stock/' + editKey).update(updates, (err) => {
+          if (err) alert("Erro ao atualizar: " + err.message);
+          else closeModal();
+        });
+      } else {
+        let newItem = { nome, cor, tipo };
+        if(tipo === 'roupa') {
+          newItem.min = parseInt(document.getElementById('min').value) || 2;
+          newItem.sizes = {};
+          SIZES.forEach(s => newItem.sizes[s] = 0);
+        } else {
+          newItem.qtd = parseInt(document.getElementById('qtdCaneca').value) || 0;
+        }
+        database.ref('stock').push(newItem, (err) => {
+          if (err) alert("Erro ao guardar: " + err.message);
+          else closeModal();
+        });
+      }
+    }
+
+    function editItem(key) {
+      openModal(key);
+    }
+
+    function deleteItem(key) {
+      if(confirm('Tem a certeza que deseja apagar este artigo?')) {
+        database.ref('stock/' + key).remove();
+      }
+    }
+  </script>
+</body>
+          </html>
+          
