@@ -15,7 +15,7 @@
       --warning: #d97706;
       --success: #16a34a;
       --text: #0f172a;
-      --subtext: #64748b;
+      --subtext: #475569;
       --border: #e2e8f0;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -35,7 +35,7 @@
     .btn-secondary { background: #e2e8f0; color: #334155; }
 
     .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
     .tag { font-size: 11px; padding: 4px 8px; border-radius: 20px; font-weight: bold; }
     .tag-roupa { background: #dbeafe; color: #1d4ed8; }
     .tag-caneca { background: #fef3c7; color: #b45309; }
@@ -141,7 +141,7 @@
           <div class="card-header">
             <div>
               <h3>${item.nome}</h3>
-              <small style="color:var(--subtext)">${item.cor}</small>
+              <div style="font-size: 1.05rem; font-weight: 600; color: var(--subtext); margin-top: 2px;">${item.cor}</div>
             </div>
             <span class="tag ${item.tipo === 'roupa' ? 'tag-roupa' : 'tag-caneca'}">${item.tipo.toUpperCase()}</span>
           </div>
@@ -281,4 +281,5 @@
     render();
   </script>
 </body>
-</html>
+          </html>
+          
