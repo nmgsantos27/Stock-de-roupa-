@@ -1,0 +1,15 @@
+{
+  "name": "Gestor de Stock",
+  "short_name": "Stock",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1565c0",
+  "theme_color": "#1565c0",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
