@@ -1,6 +1,6 @@
 {
   "name": "Stock GrafiSantos",
-  "short_name": "GrafiSantos",
+  "short_name": "Stock GrafiSantos",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
